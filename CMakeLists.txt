@@ -14,6 +14,7 @@ find_package(gazebo REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 
 find_package(Boost REQUIRED)
+find_package(muparser REQUIRED)
 
 catkin_package(
   DEPENDS
@@ -26,10 +27,16 @@ link_directories(${GAZEBO_LIBRARY_DIRS})
 include_directories(${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS} include)
 
 add_library(roboticsgroup_gazebo_mimic_joint_plugin src/mimic_joint_plugin.cpp)
-target_link_libraries(roboticsgroup_gazebo_mimic_joint_plugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES})
+target_link_libraries(roboticsgroup_gazebo_mimic_joint_plugin 
+    ${catkin_LIBRARIES} 
+    ${GAZEBO_LIBRARIES}
+    muparser)
 
 add_library(roboticsgroup_gazebo_disable_link_plugin src/disable_link_plugin.cpp)
-target_link_libraries(roboticsgroup_gazebo_disable_link_plugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES})
+target_link_libraries(roboticsgroup_gazebo_disable_link_plugin 
+    ${catkin_LIBRARIES} 
+    ${GAZEBO_LIBRARIES}
+)
 
 install(TARGETS roboticsgroup_gazebo_mimic_joint_plugin roboticsgroup_gazebo_disable_link_plugin
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

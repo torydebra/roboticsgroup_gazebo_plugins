@@ -101,6 +101,11 @@ namespace gazebo {
         offset_ = 0.0;
         if (_sdf->HasElement("offset"))
             offset_ = _sdf->GetElement("offset")->Get<double>();
+        
+        nonLinearRelation = "";
+        if (_sdf->HasElement("nlFunPos")){
+            nonLinearRelation = _sdf->GetElement("nlFunPos")->Get<std::string>();
+        }
 
         // Check for sensitiveness element
         sensitiveness_ = 0.0;
@@ -146,6 +151,7 @@ namespace gazebo {
         // Output some confirmation
         ROS_INFO_STREAM("MimicJointPlugin loaded! Joint: \"" << joint_name_ << "\", Mimic joint: \"" << mimic_joint_name_ << "\""
                                                              << ", Multiplier: " << multiplier_ << ", Offset: " << offset_
+                                                             << ", NonLinearRelationPosition: " << nonLinearRelation
                                                              << ", MaxEffort: " << max_effort_ << ", Sensitiveness: " << sensitiveness_);
     }
 
@@ -156,35 +162,63 @@ namespace gazebo {
 #else
         static ros::Duration period(world_->GetPhysicsEngine()->GetMaxStepSize());
 #endif
+        
+        double fatherAngle;
+        double mimicNewAngle;
+        double mimicOldAngle;
 
-        // Set mimic joint's angle based on joint's angle
 #if GAZEBO_MAJOR_VERSION >= 8
-        double angle = joint_->Position(0) * multiplier_ + offset_;
-        double a = mimic_joint_->Position(0);
+        fatherAngle = joint_->Position(0) ;
+        mimicOldAngle = mimic_joint_->Position(0);
 #else
-        double angle = joint_->GetAngle(0).Radian() * multiplier_ + offset_;
-        double a = mimic_joint_->GetAngle(0).Radian();
-#endif
+        fatherAngle = joint_->GetAngle(0).Radian();
+        mimicOldAngle = mimic_joint_->GetAngle(0).Radian();
 
-        if (fabs(angle - a) >= sensitiveness_) {
+#endif
+        
+        // Set mimic joint's angle based on joint's angle
+        if (nonLinearRelation.size() == 0) {
+            mimicNewAngle = fatherAngle * multiplier_ + offset_;
+
+        } else {
+            
+            try {
+                mu::Parser p;
+                //we assume that there is always a x in the expression
+                p.DefineVar("x", &fatherAngle);
+                p.SetExpr(nonLinearRelation);
+                mimicNewAngle = p.Eval();
+            }
+
+            catch (mu::Parser::exception_type &e)
+            {
+                std::cout << e.GetMsg() << std::endl;
+                std::cout << "[mimicJointGazeboPlugin " << __func__ << "] Parsing of non linear function for mimic joint "
+                    << "'" << mimic_joint_name_ << "'. Please be sure to put characther 'x' as (unique) variable for father position" 
+                    << "in the expression. Have you used syntax valid for muparser?. Expression found: '" 
+                    << nonLinearRelation << "'" << std::endl;
+            }
+        }
+
+        if (fabs(mimicNewAngle - mimicOldAngle) >= sensitiveness_) {
             if (has_pid_) {
-                if (a != a)
-                    a = angle;
-                double error = angle - a;
+                if (mimicOldAngle != mimicOldAngle)
+                    mimicOldAngle = mimicNewAngle;
+                double error = mimicNewAngle - mimicOldAngle;
                 double effort = math::clamp(pid_.computeCommand(error, period), -max_effort_, max_effort_);
                 mimic_joint_->SetForce(0, effort);
             }
             else {
 #if GAZEBO_MAJOR_VERSION >= 9
-                mimic_joint_->SetPosition(0, angle, true);
+                mimic_joint_->SetPosition(0, mimicNewAngle, true);
 #elif GAZEBO_MAJOR_VERSION > 2
                 ROS_WARN_ONCE("The mimic_joint plugin is using the Joint::SetPosition method without preserving the link velocity.");
                 ROS_WARN_ONCE("As a result, gravity will not be simulated correctly for your model.");
                 ROS_WARN_ONCE("Please set gazebo_pid parameters or upgrade to Gazebo 9.");
                 ROS_WARN_ONCE("For details, see https://github.com/ros-simulation/gazebo_ros_pkgs/issues/612");
-                mimic_joint_->SetPosition(0, angle);
+                mimic_joint_->SetPosition(0, mimicNewAngle);
 #else
-                mimic_joint_->SetAngle(0, math::Angle(angle));
+                mimic_joint_->SetAngle(0, math::Angle(mimicNewAngle));
 #endif
             }
         }

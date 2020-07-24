@@ -38,6 +38,9 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 #include <gazebo/physics/physics.hh>
 #include <gazebo/common/common.hh>
 
+//to parse and evaluate non linear function
+#include <muParser.h>
+
 namespace gazebo {
     class MimicJointPlugin : public ModelPlugin {
     public:
@@ -51,6 +54,7 @@ namespace gazebo {
         // Parameters
         std::string joint_name_, mimic_joint_name_, robot_namespace_;
         double multiplier_, offset_, sensitiveness_, max_effort_;
+        std::string nonLinearRelation;
         bool has_pid_;
 
         // PID controller if needed
