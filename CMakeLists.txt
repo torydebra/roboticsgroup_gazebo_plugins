@@ -14,7 +14,9 @@ find_package(gazebo REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 
 find_package(Boost REQUIRED)
-find_package(muparser REQUIRED)
+#TODO on my pc, find_package works. On iit pc, I need the find_library. Why?
+#find_package(muparser REQUIRED) 
+find_library(_MUPARSER_LIB muparser REQUIRED)
 
 catkin_package(
   DEPENDS
